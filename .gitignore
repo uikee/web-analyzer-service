@@ -1,0 +1,38 @@
+# Go build artifacts
+/bin/
+/build/
+*.exe
+*.out
+*.a
+*.o
+
+# Go modules and caches
+/go.work
+/go.work.sum
+/go.sum
+/vendor/
+
+# Logs and debug files
+*.log
+*.test
+*.prof
+*.trace
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Env files (Sensitive data)
+.env
+.env.local
+.env.production
+.env.test
+
+# Docker-related files
+docker-compose.override.yml
