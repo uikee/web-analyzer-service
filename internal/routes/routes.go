@@ -3,8 +3,13 @@ package routes
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/uikee/web-analyzer-service/internal/handler"
+	"github.com/uikee/web-analyzer-service/internal/service"
 )
 
-func SetupRoutes(r *gin.Engine) {
-	r.GET("/ping", handler.PingHandler)
+// RegisterRoutes sets up API endpoints
+func RegisterRoutes(router *gin.Engine) {
+	analyzerService := services.NewAnalyzerService()
+	analyzerHandler := handler.NewAnalyzerHandler(analyzerService)
+
+	router.GET("/analyze", analyzerHandler.AnalyzePage)
 }

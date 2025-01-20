@@ -4,18 +4,21 @@ import (
 	"log"
 
 	"github.com/gin-gonic/gin"
+	"github.com/uikee/web-analyzer-service/config"
 	"github.com/uikee/web-analyzer-service/internal/routes"
 )
 
 func main() {
+	// Load configuration
+	cfg := config.LoadConfig()
+
 	// Create a new Gin router
 	router := gin.Default()
 
 	// Load API routes
-	routes.SetupRoutes(router)
+	routes.RegisterRoutes(router)
 
 	// Start the server
-	port := "8080"
-	log.Printf("Server running on port %s\n", port)
-	log.Fatal(router.Run(":" + port))
+	log.Printf("Server running on port %s\n", cfg.ServerPort)
+	log.Fatal(router.Run(":" + cfg.ServerPort))
 }
