@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/uikee/web-analyzer-service/internal/service"
+	services "github.com/uikee/web-analyzer-service/internal/service"
 )
 
 // AnalyzerHandler provides HTTP handlers for web analysis
@@ -30,7 +30,7 @@ func (h *AnalyzerHandler) AnalyzePage(c *gin.Context) {
 	go func() {
 		resultChan <- h.analyzerService.Analyze(url)
 	}()
-	
+
 	// Retrieve results
 	result := <-resultChan
 	if result.Err != nil {
@@ -39,7 +39,12 @@ func (h *AnalyzerHandler) AnalyzePage(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"title":       result.Title,
-		"htmlVersion": result.HTMLVersion,
+		"title":             result.Title,
+		"htmlVersion":       result.HTMLVersion,
+		"headings":          result.Headings,
+		"internalLinks":     result.InternalLinks,
+		"externalLinks":     result.ExternalLinks,
+		"inaccessibleLinks": result.InaccessibleLinks,
+		"hasLoginForm":      result.HasLoginForm,
 	})
 }

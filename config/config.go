@@ -9,8 +9,9 @@ import (
 
 // Config holds application configuration
 type Config struct {
-	ServerPort string
-	Env        string
+	ServerPort  string
+	FrontendUrl string
+	Env         string
 }
 
 // LoadConfig loads environment variables from .env file
@@ -22,6 +23,7 @@ func LoadConfig() *Config {
 
 	return &Config{
 		ServerPort: getEnv("SERVER_PORT", "8080"),
+		FrontendUrl: getEnv("FRONTEND_URL", "http://localhost:3000"),
 		Env:        getEnv("ENV", "dev"),
 	}
 }
