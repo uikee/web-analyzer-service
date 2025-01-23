@@ -18,6 +18,7 @@ func main() {
 
 	// Configure CORS
     allowedOrigins := []string{"http://localhost:3000"}
+	
     if envOrigin := cfg.FrontendUrl; envOrigin != "" {
         allowedOrigins = append(allowedOrigins, envOrigin)
     }
