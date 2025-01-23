@@ -17,18 +17,12 @@ func main() {
 	router := gin.Default()
 
 	// Configure CORS
-    allowedOrigins := []string{"http://localhost:3000"}
-	
-    if envOrigin := cfg.FrontendUrl; envOrigin != "" {
-        allowedOrigins = append(allowedOrigins, envOrigin)
-    }
-
-    router.Use(cors.New(cors.Config{
-        AllowOrigins:     allowedOrigins,
-        AllowMethods:     []string{"GET"},
-        AllowHeaders:     []string{"Origin", "Content-Type", "Accept"},
-        AllowCredentials: true,
-    }))
+	router.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"https://web-analyzer-frontend-omega.vercel.app", "http://localhost:3000"}, // Fixed
+		AllowMethods:     []string{"GET", "POST", "OPTIONS"}, // Fixed
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept"},
+		AllowCredentials: true,
+	}))
 
 	// Load API routes
 	routes.RegisterRoutes(router)
