@@ -22,7 +22,7 @@ func LoadConfig() *Config {
 	}
 
 	return &Config{
-		ServerPort: getEnv("SERVER_PORT", "8080"),
+		ServerPort: getEnv("SERVER_PORT", "8081"),
 		FrontendUrl: getEnv("FRONTEND_URL", "http://localhost:3000"),
 		Env:        getEnv("ENV", "dev"),
 	}

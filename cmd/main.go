@@ -18,8 +18,8 @@ func main() {
 
 	// Configure CORS
 	router.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"https://web-analyzer-frontend-omega.vercel.app", "http://localhost:3000"}, // Fixed
-		AllowMethods:     []string{"GET", "POST", "OPTIONS"}, // Fixed
+		AllowOrigins:     []string{"https://web-analyzer-frontend-omega.vercel.app", "http://localhost:3000"}, 
+		AllowMethods:     []string{"GET", "POST", "OPTIONS"}, 
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept"},
 		AllowCredentials: true,
 	}))
