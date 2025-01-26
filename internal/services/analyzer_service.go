@@ -5,7 +5,6 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/uikee/web-analyzer-service/config"
 	"github.com/uikee/web-analyzer-service/internal/utils"
 )
 
@@ -25,12 +24,38 @@ type AnalyzerService interface {
 	Analyze(url string) (AnalysisResult, error)
 }
 
-// analyzerServiceImpl is the concrete implementation of AnalyzerService
-type analyzerServiceImpl struct{}
+// UtilityFunctions encapsulates utility functions for testing or real use
+type UtilityFunctions struct {
+	CountHeadings       func(htmlContent string) map[string]int
+	ContainsLoginForm   func(htmlContent string) bool
+	CountLinksConcurrently func(baseURL, htmlContent string) (int, int, int, error)
+	ExtractTitle        func(htmlContent string) string
+	DetectHTMLVersion   func(htmlContent string) string
+}
 
-// NewAnalyzerService creates a new instance of AnalyzerService
+// analyzerServiceImpl is the concrete implementation of AnalyzerService
+type analyzerServiceImpl struct {
+	utils UtilityFunctions
+}
+
+// NewAnalyzerService creates a new instance of AnalyzerService with default utilities
 func NewAnalyzerService() AnalyzerService {
-	return &analyzerServiceImpl{}
+	return &analyzerServiceImpl{
+		utils: UtilityFunctions{
+			CountHeadings:       utils.CountHeadings,
+			ContainsLoginForm:   utils.ContainsLoginForm,
+			CountLinksConcurrently: utils.CountLinksConcurrently,
+			ExtractTitle:        utils.ExtractTitle,
+			DetectHTMLVersion:   utils.DetectHTMLVersion,
+		},
+	}
+}
+
+// NewAnalyzerServiceWithUtils creates a new AnalyzerService with custom utilities (for testing)
+func NewAnalyzerServiceWithUtils(customUtils UtilityFunctions) AnalyzerService {
+	return &analyzerServiceImpl{
+		utils: customUtils,
+	}
 }
 
 var (
@@ -43,8 +68,6 @@ var (
 
 // Analyze fetches the webpage and extracts analysis data
 func (s *analyzerServiceImpl) Analyze(targetURL string) (AnalysisResult, error) {
-	config.Logger.Info().Str("url", targetURL).Msg("Fetching the web page")
-
 	resp, err := http.Get(targetURL)
 	if err != nil {
 		return AnalysisResult{}, ErrFetchFailed
@@ -64,10 +87,10 @@ func (s *analyzerServiceImpl) Analyze(targetURL string) (AnalysisResult, error) 
 	linkCountsChan := make(chan [3]int)
 	errorChan := make(chan error)
 
-	go func() { headingsChan <- utils.CountHeadings(htmlContent) }()
-	go func() { loginFormChan <- utils.ContainsLoginForm(htmlContent) }()
+	go func() { headingsChan <- s.utils.CountHeadings(htmlContent) }()
+	go func() { loginFormChan <- s.utils.ContainsLoginForm(htmlContent) }()
 	go func() {
-		internal, external, inaccessible, err := utils.CountLinksConcurrently(targetURL, htmlContent)
+		internal, external, inaccessible, err := s.utils.CountLinksConcurrently(targetURL, htmlContent)
 		if err != nil {
 			errorChan <- err
 		} else {
@@ -87,8 +110,8 @@ func (s *analyzerServiceImpl) Analyze(targetURL string) (AnalysisResult, error) 
 	}
 
 	return AnalysisResult{
-		Title:             utils.ExtractTitle(htmlContent),
-		HTMLVersion:       utils.DetectHTMLVersion(htmlContent),
+		Title:             s.utils.ExtractTitle(htmlContent),
+		HTMLVersion:       s.utils.DetectHTMLVersion(htmlContent),
 		Headings:          headings,
 		InternalLinks:     linkCounts[0],
 		ExternalLinks:     linkCounts[1],

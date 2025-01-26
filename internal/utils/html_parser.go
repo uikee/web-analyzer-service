@@ -122,8 +122,7 @@ func CountLinksConcurrently(baseURL, htmlContent string) (int, int, int, error) 
 			defer wg.Done()
 			parsedLink, err := url.Parse(link)
 			if err != nil || parsedLink.Scheme == "" {
-				config.Logger.Info().Str("link", link).Msg("Invalid link format")
-				return
+				parsedLink = base.ResolveReference(parsedLink)
 			}
 
 			if parsedLink.Host == base.Host {
@@ -132,10 +131,10 @@ func CountLinksConcurrently(baseURL, htmlContent string) (int, int, int, error) 
 				external++
 			}
 
-			resp, err := http.Head(link)
+			resp, err := http.Head(parsedLink.String())
 			if err != nil || resp.StatusCode >= 400 {
 				inaccessible++
-				config.Logger.Info().Str("link", link).Int("status_code", resp.StatusCode).Msg("Inaccessible link")
+				config.Logger.Info().Str("link", parsedLink.String()).Msg("Inaccessible link")
 			}
 		}(link)
 	}
