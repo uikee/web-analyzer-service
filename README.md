@@ -183,6 +183,7 @@ This will execute all the unit tests in the project and provide output on the su
 ## Additional Notes
 
 - The backend uses the Gin framework.
+- Assuming the user provides a reachable URL, return a 400 error when the URL is not reachable due to network or gateway issues.
 - In the basic implementation, it took more time to analyze a simple webpage (1.5 minutes), but by using channels and goroutines, the code was optimized to reduce the response time to around 5 seconds.
 - Used `zerolog` to add logs and configured it to store the logs in the app.log file.
 - CORS is configured to allow requests from `http://localhost:3000`.
