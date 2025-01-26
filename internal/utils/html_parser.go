@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/uikee/web-analyzer-service/config"
 	"golang.org/x/net/html"
 )
 
@@ -14,6 +15,7 @@ import (
 func ExtractTitle(htmlContent string) string {
 	doc, err := html.Parse(strings.NewReader(htmlContent))
 	if err != nil {
+		config.Logger.Error().Err(err).Msg("Failed to parse HTML content while extracting title")
 		return ""
 	}
 
@@ -38,6 +40,7 @@ func DetectHTMLVersion(htmlContent string) string {
 	matches := doctypeRegex.FindStringSubmatch(htmlContent)
 
 	if len(matches) < 2 {
+		config.Logger.Warn().Msg("Doctype not found or unrecognized HTML version")
 		return "Unknown HTML version"
 	}
 
@@ -55,6 +58,7 @@ func DetectHTMLVersion(htmlContent string) string {
 	case strings.Contains(doctype, "html"):
 		return "HTML5"
 	default:
+		config.Logger.Warn().Str("doctype", doctype).Msg("Unknown HTML version detected")
 		return "Unknown HTML version"
 	}
 }
@@ -62,7 +66,11 @@ func DetectHTMLVersion(htmlContent string) string {
 // CountHeadings counts the headings in the HTML
 func CountHeadings(htmlContent string) map[string]int {
 	headings := make(map[string]int)
-	doc, _ := html.Parse(strings.NewReader(htmlContent))
+	doc, err := html.Parse(strings.NewReader(htmlContent))
+	if err != nil {
+		config.Logger.Error().Err(err).Msg("Failed to parse HTML content while counting headings")
+		return nil
+	}
 
 	var traverse func(*html.Node)
 	traverse = func(n *html.Node) {
@@ -75,18 +83,15 @@ func CountHeadings(htmlContent string) map[string]int {
 	}
 	traverse(doc)
 
+	config.Logger.Info().Int("headings_count", len(headings)).Msg("Headings counted successfully")
 	return headings
 }
 
 // CountLinksConcurrently analyzes links concurrently
 func CountLinksConcurrently(baseURL, htmlContent string) (int, int, int, error) {
-	// internalChan := make(chan int)
-	// externalChan := make(chan int)
-	// inaccessibleChan := make(chan int)
-	// errorChan := make(chan error)
-
 	doc, err := html.Parse(strings.NewReader(htmlContent))
 	if err != nil {
+		config.Logger.Error().Err(err).Msg("Failed to parse HTML content while counting links")
 		return 0, 0, 0, err
 	}
 
@@ -117,6 +122,7 @@ func CountLinksConcurrently(baseURL, htmlContent string) (int, int, int, error) 
 			defer wg.Done()
 			parsedLink, err := url.Parse(link)
 			if err != nil || parsedLink.Scheme == "" {
+				config.Logger.Info().Str("link", link).Msg("Invalid link format")
 				return
 			}
 
@@ -129,15 +135,23 @@ func CountLinksConcurrently(baseURL, htmlContent string) (int, int, int, error) 
 			resp, err := http.Head(link)
 			if err != nil || resp.StatusCode >= 400 {
 				inaccessible++
+				config.Logger.Info().Str("link", link).Int("status_code", resp.StatusCode).Msg("Inaccessible link")
 			}
 		}(link)
 	}
 
 	wg.Wait()
+	config.Logger.Info().Int("internal_links", internal).Int("external_links", external).Int("inaccessible_links", inaccessible).Msg("Link analysis completed successfully")
 	return internal, external, inaccessible, nil
 }
 
 // ContainsLoginForm detects login forms in the HTML
 func ContainsLoginForm(htmlContent string) bool {
-	return strings.Contains(htmlContent, "type=\"password\"")
+	contains := strings.Contains(htmlContent, "type=\"password\"")
+	if contains {
+		config.Logger.Info().Msg("Login form detected")
+	} else {
+		config.Logger.Info().Msg("No login form detected")
+	}
+	return contains
 }

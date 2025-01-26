@@ -5,26 +5,24 @@ import (
 	"io"
 	"net/http"
 
-	// "sync"
-
+	"github.com/uikee/web-analyzer-service/config"
 	"github.com/uikee/web-analyzer-service/internal/utils"
 )
 
 // AnalysisResult represents the result of a web analysis
 type AnalysisResult struct {
-	Title             string
-	HTMLVersion       string
-	Headings          map[string]int
-	InternalLinks     int
-	ExternalLinks     int
-	InaccessibleLinks int
-	HasLoginForm      bool
-	Err               error
+	Title             string         `json:"title"`
+	HTMLVersion       string         `json:"html_version"`
+	Headings          map[string]int `json:"headings"`
+	InternalLinks     int            `json:"internal_links"`
+	ExternalLinks     int            `json:"external_links"`
+	InaccessibleLinks int            `json:"inaccessible_links"`
+	HasLoginForm      bool           `json:"has_login_form"`
 }
 
 // AnalyzerService provides functionality to analyze web pages
 type AnalyzerService interface {
-	Analyze(url string) AnalysisResult
+	Analyze(url string) (AnalysisResult, error)
 }
 
 // analyzerServiceImpl is the concrete implementation of AnalyzerService
@@ -35,36 +33,41 @@ func NewAnalyzerService() AnalyzerService {
 	return &analyzerServiceImpl{}
 }
 
-// Analyze fetches the webpage and extracts title and HTML version
-func (s *analyzerServiceImpl) Analyze(url string) AnalysisResult {
-	resp, err := http.Get(url)
+var (
+	// ErrFetchFailed indicates that fetching the URL failed
+	ErrFetchFailed = errors.New("failed to fetch the URL")
+
+	// ErrReadBodyFailed indicates that reading the response body failed
+	ErrReadBodyFailed = errors.New("failed to read response body")
+)
+
+// Analyze fetches the webpage and extracts analysis data
+func (s *analyzerServiceImpl) Analyze(targetURL string) (AnalysisResult, error) {
+	config.Logger.Info().Str("url", targetURL).Msg("Fetching the web page")
+
+	resp, err := http.Get(targetURL)
 	if err != nil {
-		return AnalysisResult{Err: errors.New("failed to fetch the URL")}
+		return AnalysisResult{}, ErrFetchFailed
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return AnalysisResult{Err: errors.New("URL returned non-200 status")}
-	}
-
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return AnalysisResult{Err: errors.New("failed to read response body")}
+		return AnalysisResult{}, ErrReadBodyFailed
 	}
 
 	htmlContent := string(body)
 
-	// Channels for concurrent tasks
+	// Concurrent execution using channels
 	headingsChan := make(chan map[string]int)
 	loginFormChan := make(chan bool)
 	linkCountsChan := make(chan [3]int)
 	errorChan := make(chan error)
 
-	// Goroutines for concurrent tasks
 	go func() { headingsChan <- utils.CountHeadings(htmlContent) }()
 	go func() { loginFormChan <- utils.ContainsLoginForm(htmlContent) }()
 	go func() {
-		internal, external, inaccessible, err := utils.CountLinksConcurrently(url, htmlContent)
+		internal, external, inaccessible, err := utils.CountLinksConcurrently(targetURL, htmlContent)
 		if err != nil {
 			errorChan <- err
 		} else {
@@ -72,11 +75,7 @@ func (s *analyzerServiceImpl) Analyze(url string) AnalysisResult {
 		}
 	}()
 
-	// Detect title and HTML version
-	title := utils.ExtractTitle(htmlContent)
-	htmlVersion := utils.DetectHTMLVersion(htmlContent)
-
-	// Wait for results
+	// Get results
 	headings := <-headingsChan
 	hasLoginForm := <-loginFormChan
 
@@ -84,24 +83,16 @@ func (s *analyzerServiceImpl) Analyze(url string) AnalysisResult {
 	select {
 	case linkCounts = <-linkCountsChan:
 	case err = <-errorChan:
-		return AnalysisResult{Err: err}
-	}
-
-	if title == "" {
-		title = "Title not found"
-	}
-	if htmlVersion == "" {
-		htmlVersion = "Unknown HTML version"
+		return AnalysisResult{}, err
 	}
 
 	return AnalysisResult{
-		Title:             title,
-		HTMLVersion:       htmlVersion,
+		Title:             utils.ExtractTitle(htmlContent),
+		HTMLVersion:       utils.DetectHTMLVersion(htmlContent),
 		Headings:          headings,
 		InternalLinks:     linkCounts[0],
 		ExternalLinks:     linkCounts[1],
 		InaccessibleLinks: linkCounts[2],
 		HasLoginForm:      hasLoginForm,
-		Err:               nil,
-	}
+	}, nil
 }

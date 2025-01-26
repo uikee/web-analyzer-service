@@ -4,47 +4,66 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	services "github.com/uikee/web-analyzer-service/internal/service"
+	"github.com/uikee/web-analyzer-service/config"
+	"github.com/uikee/web-analyzer-service/internal/services"
+	"github.com/uikee/web-analyzer-service/internal/validators"
 )
+
+// ErrorResponse represents a standardized error response with HTTP status
+type ErrorResponse struct {
+	HTTPStatus int    `json:"status"`
+	Message    string `json:"error"`
+}
 
 // AnalyzerHandler provides HTTP handlers for web analysis
 type AnalyzerHandler struct {
 	analyzerService services.AnalyzerService
+	validator       validators.URLValidator
 }
 
 // NewAnalyzerHandler creates a new instance of AnalyzerHandler
-func NewAnalyzerHandler(service services.AnalyzerService) *AnalyzerHandler {
-	return &AnalyzerHandler{analyzerService: service}
+func NewAnalyzerHandler(service services.AnalyzerService, validator validators.URLValidator) *AnalyzerHandler {
+	return &AnalyzerHandler{analyzerService: service, validator: validator}
+}
+
+// handleError sends an appropriate JSON error response and logs it
+func (h *AnalyzerHandler) handleError(c *gin.Context, statusCode int, err error, context string) {
+	config.Logger.Error().
+		Err(err).
+		Int("status", statusCode).
+		Str("context", context).
+		Msg("API error occurred")
+
+	c.JSON(statusCode, ErrorResponse{
+		HTTPStatus: statusCode,
+		Message:    err.Error(),
+	})
 }
 
 // AnalyzePage handles requests for analyzing web pages
 func (h *AnalyzerHandler) AnalyzePage(c *gin.Context) {
-	url := c.Query("url")
-	if url == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "URL parameter is required"})
+	urlParam := c.Query("url")
+	if urlParam == "" {
+		h.handleError(c, http.StatusBadRequest, validators.ErrMissingURL, "Missing URL parameter")
 		return
 	}
 
-	// Execute analysis in a separate goroutine
-	resultChan := make(chan services.AnalysisResult)
-	go func() {
-		resultChan <- h.analyzerService.Analyze(url)
-	}()
-
-	// Retrieve results
-	result := <-resultChan
-	if result.Err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": result.Err.Error()})
+	// Validate URL
+	if err := h.validator.Validate(urlParam); err != nil {
+		h.handleError(c, http.StatusBadRequest, err, "Invalid URL format")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"title":             result.Title,
-		"htmlVersion":       result.HTMLVersion,
-		"headings":          result.Headings,
-		"internalLinks":     result.InternalLinks,
-		"externalLinks":     result.ExternalLinks,
-		"inaccessibleLinks": result.InaccessibleLinks,
-		"hasLoginForm":      result.HasLoginForm,
-	})
+	config.Logger.Info().Str("url", urlParam).Msg("Start analyzing web page")
+
+	// Perform the web page analysis
+	result, err := h.analyzerService.Analyze(urlParam)
+	if err != nil {
+		h.handleError(c, http.StatusInternalServerError, err, "Error during page analysis")
+		return
+	}
+
+	config.Logger.Info().Str("url", urlParam).Msg("Web page analysis completed successfully")
+
+	c.JSON(http.StatusOK, result)
 }

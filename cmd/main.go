@@ -1,7 +1,9 @@
 package main
 
 import (
-	"log"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -12,14 +14,15 @@ import (
 func main() {
 	// Load configuration
 	cfg := config.LoadConfig()
+	logger := config.Logger
 
 	// Create a new Gin router
 	router := gin.Default()
 
 	// Configure CORS
 	router.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"https://web-analyzer-frontend-omega.vercel.app", "http://localhost:3000"}, 
-		AllowMethods:     []string{"GET", "POST", "OPTIONS"}, 
+		AllowOrigins:     []string{"http://localhost:3000"},
+		AllowMethods:     []string{"GET", "POST", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept"},
 		AllowCredentials: true,
 	}))
@@ -27,7 +30,17 @@ func main() {
 	// Load API routes
 	routes.RegisterRoutes(router)
 
-	// Start the server
-	log.Printf("Server running on port %s\n", cfg.ServerPort)
-	log.Fatal(router.Run(":" + cfg.ServerPort))
+	// Graceful shutdown handling
+	go func() {
+		logger.Info().Msgf("Server running on port %s", cfg.ServerPort)
+		if err := router.Run(":" + cfg.ServerPort); err != nil {
+			logger.Fatal().Err(err).Msg("Failed to start server")
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+	<-quit
+
+	logger.Info().Msg("Shutting down server...")
 }
