@@ -120,6 +120,9 @@ curl "http://localhost:8081/analyze?url=https://example.com"
 ```
 #### Example UI:
 
+![Screenshot from 2025-01-26 21-53-33](https://github.com/user-attachments/assets/7a00b5fb-1e37-4bbd-b029-8c956d04acc4)
+
+
 ### Error Handling
 
 The service provides robust error handling and will return clear error messages in cases like:
@@ -137,6 +140,10 @@ The service provides robust error handling and will return clear error messages 
 }
 ```
 #### Example Error Response on UI:
+
+![Screenshot from 2025-01-26 21-52-46](https://github.com/user-attachments/assets/5a1f02f5-b8c5-43af-a1df-07a2d920f579)
+
+![Screenshot from 2025-01-26 21-54-07](https://github.com/user-attachments/assets/7f89ed2d-969b-4896-9a3a-d2cc4380e05d)
 
 ## Testing
 
